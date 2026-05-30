@@ -20,3 +20,4 @@ Module.symvers
 # OS
 .DS_Store
 Thumbs.db
+windows_extracted/
