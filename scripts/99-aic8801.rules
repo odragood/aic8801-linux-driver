@@ -1,0 +1,19 @@
+# AIC AIC8801 (VID_A69C:PID_8801) - UDEV Rules
+# WiFi + Bluetooth
+
+# Bootloader mode (PID 8800): carrega firmware loader para BT+WiFi
+ACTION=="add", SUBSYSTEM=="usb", ATTR{idVendor}=="a69c", ATTR{idProduct}=="8800", \
+    RUN+="/sbin/modprobe aic_load_fw"
+
+# Mass storage mode (precisa modoswitch para ativar WiFi)
+ACTION=="add", SUBSYSTEM=="usb", ATTR{idVendor}=="a69c", ATTR{idProduct}=="5721", \
+    RUN+="/usr/sbin/usb_modeswitch -K -v a69c -p 5721"
+ACTION=="add", SUBSYSTEM=="usb", ATTR{idVendor}=="a69c", ATTR{idProduct}=="5722", \
+    RUN+="/usr/sbin/usb_modeswitch -K -v a69c -p 5722"
+
+# Operational mode (PID 8801): carrega driver WiFi, BT gerenciado pelo btusb
+ACTION=="add", SUBSYSTEM=="usb", ATTR{idVendor}=="a69c", ATTR{idProduct}=="8801", \
+    RUN+="/bin/bash -c 'sleep 2 && /sbin/modprobe aic8800_fdrv && systemctl start bluetooth 2>/dev/null || true'"
+
+# Bluetooth interface (MI_00, Class 0xE0): btusb já carrega automaticamente
+# Não precisa de regra especial - o kernel detecta Class 0xE0 e carrega btusb
