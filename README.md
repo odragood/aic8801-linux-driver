@@ -16,15 +16,32 @@ Supports **Wi-Fi 6 (802.11ax)** up to **300 Mbps** and **Bluetooth 5.2**.
 
 | Kernel | Status |
 |--------|--------|
-| **5.4 – 7.0** | ✅ Tested (Ubuntu 26.04, kernel 7.0.0) |
+| **5.4 – 7.2** | ✅ Tested (Ubuntu 26.04 kernel 7.0, CachyOS kernel 7.2.6) |
 | **< 5.4** | ⚠️ Untested, should work |
-| **> 7.0** | ⚠️ Untested, may need KERNEL_VERSION macro updates |
+| **> 7.2** | ⚠️ Untested, may need KERNEL_VERSION macro updates |
+
+> **Clang-built kernels** (CachyOS, some Fedora/openSUSE setups): the module must be
+> built with `make LLVM=1`, otherwise the build fails with unrecognized
+> `-mllvm`/`-fsplit-lto-unit` options. `scripts/install.sh` detects this automatically.
 
 ## Installation
 
+### Quick install (recommended)
+
+```bash
+git clone https://github.com/odragood/aic8801-linux-driver.git
+cd aic8801-linux-driver
+sudo ./scripts/install.sh          # normal install
+sudo ./scripts/install.sh --dkms   # DKMS: auto-rebuilds on kernel updates
+```
+
+Uninstall with `sudo ./scripts/uninstall.sh`.
+
+### Manual installation
+
 ```bash
 # 1. Dependencies
-sudo apt install -y build-essential linux-headers-$(uname -r) git dkms wget bluez
+sudo apt install -y build-essential linux-headers-$(uname -r) git wget bluez
 
 # 2. Clone base driver
 cd /tmp
@@ -38,6 +55,8 @@ cp /path/to/driver/aicwf_usb.c src/aic8800_fdrv/
 cp /path/to/driver/aicwf_usb.h src/aic8800_fdrv/
 cp /path/to/driver/rwnx_platform.c src/aic8800_fdrv/
 cp /path/to/driver/rwnx_platform.h src/aic8800_fdrv/
+cp /path/to/driver/rwnx_main.c src/aic8800_fdrv/
+cp /path/to/driver/rwnx_msg_tx.c src/aic8800_fdrv/
 cp /path/to/driver/usb_host.c src/aic8800_fdrv/
 cp /path/to/driver/aic_load_fw_aic_bluetooth_main.c src/aic_load_fw/aic_bluetooth_main.c
 cp /path/to/driver/aic_load_fw_aicwf_usb.c src/aic_load_fw/aicwf_usb.c
@@ -47,9 +66,10 @@ cp /path/to/driver/aicbluetooth.h src/aic_load_fw/
 cp /path/to/driver/aicbluetooth_cmds.c src/aic_load_fw/
 cp /path/to/driver/aicbluetooth_cmds.h src/aic_load_fw/
 
-# 4. Compile
+# 4. Compile (add LLVM=1 for clang-built kernels, e.g. CachyOS)
 cd src
-make -j$(nproc)
+make -j$(nproc)            # gcc-built kernels
+make LLVM=1 -j$(nproc)     # clang-built kernels
 
 # 5. Install kernel modules
 sudo mkdir -p /lib/modules/$(uname -r)/kernel/drivers/net/wireless/aic8800
@@ -60,6 +80,7 @@ sudo depmod -a
 # 6. Install Wi-Fi firmware
 sudo mkdir -p /lib/firmware/aic8800DC
 sudo cp /path/to/firmware/*8800dc* /path/to/firmware/lmacfw_rf_8800dc* /lib/firmware/aic8800DC/
+echo -e 'country_code=00\ntx_power_2g=20\ntx_power_5g=20' | sudo tee /lib/firmware/aic8800DC/aic_userconfig_8800dc.txt
 
 # 7. Install Bluetooth firmware (includes U03 chip revision files)
 sudo mkdir -p /lib/firmware/aic8800
@@ -137,6 +158,9 @@ bluetoothctl
 | PID 8801 no Wi-Fi | `sudo modprobe aic8800_fdrv` |
 | BT not showing up | `sudo modprobe -r btusb && sudo modprobe btusb` |
 | PID 5721/5722 | `sudo usb_modeswitch -K -v a69c -p 5721` |
+| Build fails with `unrecognized command-line option '-mllvm'` | Clang-built kernel: compile with `make LLVM=1` |
+| Wi-Fi "unavailable" in NetworkManager after reloading the module | `sudo systemctl restart wpa_supplicant` |
+| Driver gone after a kernel update | Reinstall, or use `sudo ./scripts/install.sh --dkms` |
 | Firmware U03 missing | Download from [radxa-pkg/aic8800](https://github.com/radxa-pkg/aic8800/tree/main/src/USB/driver_fw/fw/aic8800) |
 
 ## Firmware Structure
